@@ -163,6 +163,9 @@ class VFS:
         return -1
       print('Block read from replica')
       new_rpid = self.find_free_block(id)
+      if new_rpid < 0:
+        print("Error creating replica")
+        return res
       if self._write_block(new_rpid, block_info):
         self.block_metadata[rpid].replication = new_rpid
       return res

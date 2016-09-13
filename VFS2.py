@@ -113,6 +113,9 @@ class VFS:
       print('Invalid disk id')
       return False
     metadata = self.disk_metadata[id]
+    if block_no>metadata.size:
+      print('Invalid block no')
+      return False
     pid = metadata.disk_blocks()[block_no-1]+1
     return self._write_block(pid, block_info)
 
@@ -121,41 +124,81 @@ class VFS:
       print('Invalid disk id')
       return -1
     metadata = self.disk_metadata[id]
+    if block_no>metadata.size:
+      print('Invalid block no')
+      return False
     pid = metadata.disk_blocks()[block_no-1]+1
     return self._read_block(pid, block_info)
 
 
 def test_disk_api():
   vfs = VFS()
+  print('Testing Disk API')
+  print('Creating Disk A of size 100 blocks')
   vfs.create_disk('A', 100)
+  print('Creating Disk B of size 200 blocks')
   vfs.create_disk('B', 200)
+  print('Creating Disk C of size 200 blocks')
   vfs.create_disk('C', 200)
+  print('Block Allocation:')
   vfs.print_block_allocation()
+  print('Deleting Disk A')
   vfs.delete_disk('A')
+  print('Block Allocation:')
+  vfs.print_block_allocation()
+  print('Creating Disk A of size 300 Blocks')
+  vfs.create_disk('A', 300) # Since contigous allocation, should throw error
+  print('Deleting Disk C')
   vfs.delete_disk('C')
   vfs.print_block_allocation()
+  print('Creating Disk A of size 300 Blocks')
   vfs.create_disk('A', 300) # Since contigous allocation, should throw error
+  print('Creating Disk A of size 50 Blocks')
+  vfs.create_disk('A', 50) # Since contigous allocation, should throw error
+  print('Creating Disk B of size 100 Blocks')
+  vfs.create_disk('B', 100) # Disk already exists
   vfs.print_block_allocation()
+  print('Deleting Disk D')
+  vfs.delete_disk('D')
 
 def test_block_api():
+  print('Testing Block API')
   vfs = VFS()
+  print('Creating Disk A of size 5 blocks')
   vfs.create_disk('A', 5)
+  print('Creating Disk B of size 4 blocks')
   vfs.create_disk('B', 4)
+  print('Writing buff=shubham at block 1 in Disk A')
   buff = bytearray(b'shubham')
   vfs.write_block('A', 1, buff)
   rbuff1 = bytearray(10)
   rbuff2 = bytearray(2) # Test reading into small buffer.
+  print('Reading rbuff1 from block 1 in Disk A ')
   vfs.read_block('A',1, rbuff1)
+  print('rbuff1 = ', rbuff1.decode('utf-8'))
   vfs.read_block('A',1, rbuff2)
-  print(rbuff1.decode('utf-8'), rbuff2.decode('utf-8'))
-  # Test writing to id > 200.
-  buff = bytearray(b'shraw')
+  print('Reading into a smaller buffer rbuff2 of size 2 from Block 1 in Disk A')
+  print('rbuff2 = ', rbuff2.decode('utf-8'))
+
+
+  buff = bytearray(b'abcde')
+  print('Writing buff=abcde at block 2 in Disk B')
   vfs.write_block('B', 2, buff)
+  print('Reading rbuff1 from block 2 in Disk B ')
+
   vfs.read_block('B',2, rbuff1)
-  print(rbuff1.decode('utf-8'))
+  print('rbuff1=',rbuff1.decode('utf-8'))
+
+  #Test writing outside block limit 
+  print('Writing buff=abcde at block 10 in Disk B')
+  vfs.write_block('B', 10, buff)
   # Test reading after deletion
+  print('Deleting Disk B')
   vfs.delete_disk('B')
-  print(vfs.read_block('B',2, rbuff1))
+  print('Reading rbuff1 from block 2 in Disk B')
+  vfs.read_block('B',2, rbuff1)
 
 if __name__ == '__main__':
-  test_block_api() 
+  test_disk_api() 
+  # print()
+  # test_block_api()
