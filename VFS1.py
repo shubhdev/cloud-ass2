@@ -27,13 +27,11 @@ class VFS:
       raise "Invalid block no"
     metadata = self.block_metadata[block_no-1]
     assert not metadata.free
-    size = metadata.size
-
     if block_no <= 200:
       block = self.disk_1[block_no-1]
     else:
       block = self.disk_2[block_no-201]
-    res_size = min(len(block_info), len(block))
+    res_size = min(len(block_info), metadata.size)
     block_info[:res_size] = block[:res_size]
 
 def test_block_api():

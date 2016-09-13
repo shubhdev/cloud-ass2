@@ -1,7 +1,9 @@
 """
-Supports creation/deletion of virtual disks. Disks are allocated blocks in a 
-contigous manner, so fragmentation can occur.
+Supports creation/deletion of virtual disks. Disks are allocated blocks
+from a list of free block ids.
 """
+from collections import deque
+
 class BlockInfo:
   def __init__(self):
     self.size = 0
@@ -14,12 +16,9 @@ class BlockInfo:
 
 class DiskInfo:
   def __init__(self):
-    self.size = 0
-    self.start = -1
+    self.blocks = []
   def disk_blocks(self):
-    if self.start < 0:
-      raise 'Uninitalized disk!'
-    return range(self.start, self.start + self.size)
+    return self.blocks
 
 class VFS:
   def __init__(self):
@@ -27,6 +26,7 @@ class VFS:
     self.disk_2 = [bytearray(100) for i in range(300)]
     self.block_metadata = [BlockInfo() for i in range(500)]
     self.disk_metadata = {}
+    self.free_blocks = deque([i for i in range(500)])
 
   def _write_block(self, block_no, block_info):
     if block_no > 500 or block_no < 1:
@@ -65,28 +65,20 @@ class VFS:
     if id in self.disk_metadata:
       print('A disk with given id exists')
       return False
-    if size > 500:
+    if size > len(self.free_blocks):
       print('Out of memory!')
       return False
-    # find contigous space of 'size' blocks. O(n^2), could be optimized.
-    start = -1
-    for bid in range(0, 500-size+1):
-      if all(x.unallocated for x in self.block_metadata[bid:bid+size]):
-        start = bid
-        break
-    # print('sdasdasaddasds', start, start+size)
-    if start < 0:
-      print('Out of memory!')
-      return False
-    for bid in range(start, start+size):
+    # Allocate the first 'size' blocks from free blocks list.
+    metadata = DiskInfo()
+    while size > 0:
+      bid = self.free_blocks.popleft()
       block_data = self.block_metadata[bid]
       block_data.unallocated = False
       block_data.disk_id = id
-    assert self.block_metadata[0] != self.block_metadata[1]
-    metadata = DiskInfo()
+      metadata.blocks.append(bid)
+      size -= 1
+
     self.disk_metadata[id] = metadata
-    metadata.start = start
-    metadata.size = size
     return True
 
   def delete_disk(self, id):
@@ -95,6 +87,7 @@ class VFS:
       return False
     metadata = self.disk_metadata[id]
     for bid in metadata.disk_blocks():
+      self.free_blocks.append(bid)
       self.block_metadata[bid].reset()
     self.disk_metadata.pop(id)
     return True
@@ -134,7 +127,11 @@ def test_disk_api():
   vfs.delete_disk('A')
   vfs.delete_disk('C')
   vfs.print_block_allocation()
-  vfs.create_disk('A', 300) # Since contigous allocation, should throw error
+  vfs.create_disk('A', 300) # Should be successful now.
+  vfs.print_block_allocation()
+  vfs.delete_disk('A')
+  vfs.print_block_allocation()
+  vfs.create_disk('C', 200)
   vfs.print_block_allocation()
 
 def test_block_api():
@@ -158,4 +155,5 @@ def test_block_api():
   print(vfs.read_block('B',2, rbuff1))
 
 if __name__ == '__main__':
-  test_block_api() 
+  test_disk_api()
+  test_block_api()

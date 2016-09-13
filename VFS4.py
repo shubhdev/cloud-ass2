@@ -1,25 +1,32 @@
 """
-Supports creation/deletion of virtual disks. Disks are allocated blocks in a 
-contigous manner, so fragmentation can occur.
+Supports replication of blocks.
+Supports creation/deletion of virtual disks. Disks are allocated blocks
+from a list of free block ids.
 """
+from collections import deque
+import random
+
+generate_read_errors = True
+read_error_prob = 0.1
 class BlockInfo:
   def __init__(self):
     self.size = 0
     self.free = True
     self.unallocated = True
     self.disk_id = None
+    self.error = False
+    self.replication = None
   
   def reset(self):
+    error = self.error
     self.__init__()
+    self.error = error
 
 class DiskInfo:
   def __init__(self):
-    self.size = 0
-    self.start = -1
+    self.blocks = []
   def disk_blocks(self):
-    if self.start < 0:
-      raise 'Uninitalized disk!'
-    return range(self.start, self.start + self.size)
+    return self.blocks
 
 class VFS:
   def __init__(self):
@@ -27,6 +34,7 @@ class VFS:
     self.disk_2 = [bytearray(100) for i in range(300)]
     self.block_metadata = [BlockInfo() for i in range(500)]
     self.disk_metadata = {}
+    self.free_blocks = deque([i for i in range(500)])
 
   def _write_block(self, block_no, block_info):
     if block_no > 500 or block_no < 1:
@@ -46,6 +54,11 @@ class VFS:
     return True
 
   def _read_block(self, block_no, block_info):
+    # Uncomment for testing test_replica()
+    # if block_no == 1:
+    #   return -1
+    if generate_read_errors and random.random() < read_error_prob:
+      return -1
     if block_no > 500 or block_no < 1:
       print("Invalid block no")
       return -1
@@ -65,28 +78,20 @@ class VFS:
     if id in self.disk_metadata:
       print('A disk with given id exists')
       return False
-    if size > 500:
+    if size > len(self.free_blocks):
       print('Out of memory!')
       return False
-    # find contigous space of 'size' blocks. O(n^2), could be optimized.
-    start = -1
-    for bid in range(0, 500-size+1):
-      if all(x.unallocated for x in self.block_metadata[bid:bid+size]):
-        start = bid
-        break
-    # print('sdasdasaddasds', start, start+size)
-    if start < 0:
-      print('Out of memory!')
-      return False
-    for bid in range(start, start+size):
+    # Allocate the first 'size' blocks from free blocks list.
+    metadata = DiskInfo()
+    while size > 0:
+      bid = self.free_blocks.popleft()
       block_data = self.block_metadata[bid]
       block_data.unallocated = False
       block_data.disk_id = id
-    assert self.block_metadata[0] != self.block_metadata[1]
-    metadata = DiskInfo()
+      metadata.blocks.append(bid)
+      size -= 1
+
     self.disk_metadata[id] = metadata
-    metadata.start = start
-    metadata.size = size
     return True
 
   def delete_disk(self, id):
@@ -95,6 +100,7 @@ class VFS:
       return False
     metadata = self.disk_metadata[id]
     for bid in metadata.disk_blocks():
+      self.free_blocks.append(bid)
       self.block_metadata[bid].reset()
     self.disk_metadata.pop(id)
     return True
@@ -108,13 +114,31 @@ class VFS:
         print(metadata.disk_id, end=' ')
     print('')
 
+  def find_free_block(self, disk_id):
+    for pid in self.disk_metadata[disk_id].disk_blocks():
+      data = self.block_metadata[pid]
+      if data.free and not data.error:
+        return pid + 1
+    return -1
   def write_block(self, id, block_no, block_info):
     if not id in self.disk_metadata:
       print('Invalid disk id')
       return False
     metadata = self.disk_metadata[id]
     pid = metadata.disk_blocks()[block_no-1]+1
-    return self._write_block(pid, block_info)
+    if not self._write_block(pid, block_info):
+      return False
+    block_data = self.block_metadata[pid]
+    if block_data.replication is None:
+      # assign a block for replication.
+      rpid = self.find_free_block(id)
+    if rpid < 0:
+      print ("Not enough space for replication!")
+      return True
+    block_data.replication = rpid
+    if not self._write_block(rpid, block_info):
+      print('Failed to create replica')
+    return True
 
   def read_block(self, id, block_no, block_info):  
     if not id in self.disk_metadata:
@@ -122,40 +146,37 @@ class VFS:
       return -1
     metadata = self.disk_metadata[id]
     pid = metadata.disk_blocks()[block_no-1]+1
-    return self._read_block(pid, block_info)
+    print('~~~~', pid)
+    res = self._read_block(pid, block_info)
+    if res < 0:
+      # try for the replication block
+      bdata = self.block_metadata[pid]
+      bdata.error = True
+      rpid = bdata.replication
+      if rpid is None:
+        print("Error retrieving block")
+        return -1
+      res = self._read_block(rpid, block_info)
+      if res < 0:
+        print("Error retrieving block")
+        self.block_metadata[rpid].error = True
+        return -1
+      print('Block read from replica')
+      new_rpid = self.find_free_block(id)
+      if self._write_block(new_rpid, block_info):
+        self.block_metadata[rpid].replication = new_rpid
+      return res
+    return res
 
-
-def test_disk_api():
+def test_replication():
   vfs = VFS()
-  vfs.create_disk('A', 100)
-  vfs.create_disk('B', 200)
-  vfs.create_disk('C', 200)
-  vfs.print_block_allocation()
-  vfs.delete_disk('A')
-  vfs.delete_disk('C')
-  vfs.print_block_allocation()
-  vfs.create_disk('A', 300) # Since contigous allocation, should throw error
-  vfs.print_block_allocation()
-
-def test_block_api():
-  vfs = VFS()
-  vfs.create_disk('A', 5)
-  vfs.create_disk('B', 4)
-  buff = bytearray(b'shubham')
-  vfs.write_block('A', 1, buff)
-  rbuff1 = bytearray(10)
-  rbuff2 = bytearray(2) # Test reading into small buffer.
-  vfs.read_block('A',1, rbuff1)
-  vfs.read_block('A',1, rbuff2)
-  print(rbuff1.decode('utf-8'), rbuff2.decode('utf-8'))
-  # Test writing to id > 200.
-  buff = bytearray(b'shraw')
-  vfs.write_block('B', 2, buff)
-  vfs.read_block('B',2, rbuff1)
-  print(rbuff1.decode('utf-8'))
-  # Test reading after deletion
-  vfs.delete_disk('B')
-  print(vfs.read_block('B',2, rbuff1))
+  vfs.create_disk('A', 10)
+  vfs.write_block('A',1, bytearray(b'shubham'))
+  rbuff = bytearray(20)
+  print(vfs.read_block('A',2,rbuff)) # Acc. to our design, this should have the replica.
+  print(rbuff.decode('utf-8'))  
+  print(vfs.read_block('A',1,rbuff)) # We generate error when bid is 1, should read from replica.
+  print(rbuff.decode('utf-8'))  
 
 if __name__ == '__main__':
-  test_block_api() 
+  test_replication()
