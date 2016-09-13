@@ -1,3 +1,7 @@
+"""
+Supports creation/deletion of virtual disks. Disks are allocated blocks in a 
+contigous manner, so fragmentation can occur.
+"""
 class BlockInfo:
   def __init__(self):
     self.size = 0
