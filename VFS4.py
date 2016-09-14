@@ -147,8 +147,8 @@ class VFS:
     if block_no > metadata.size or block_no < 1:
       print('Invalid block no')
       return False
-    pid = metadata.disk_blocks()[block_no-1]+1
-    if not self._write_block(pid, block_info):
+    pid = metadata.disk_blocks()[block_no-1]
+    if not self._write_block(pid+1, block_info):
       return False
     block_data = self.block_metadata[pid]
     if block_data.replication is None:
@@ -159,7 +159,7 @@ class VFS:
         return True
       block_data.replication = rpid
 
-    if not self._write_block(block_data.replication, block_info):
+    if not self._write_block(block_data.replication+1, block_info):
       print('Failed to create replica')
     return True
 
@@ -172,9 +172,9 @@ class VFS:
       print('Invalid block no')
       return False
 
-    pid = metadata.disk_blocks()[block_no-1]+1
+    pid = metadata.disk_blocks()[block_no-1]
     # print('~~~~', pid)
-    res = self._read_block(pid, block_info)
+    res = self._read_block(pid+1, block_info)
     if res < 0:
       if(self.read_error):
         self. original_read_error += 1
@@ -186,7 +186,7 @@ class VFS:
       if rpid is None:
         print("Error retrieving block")
         return -1
-      res = self._read_block(rpid, block_info)
+      res = self._read_block(rpid+1, block_info)
       if res < 0:
         if(self.read_error):
           self.replica_read_error += 1
@@ -201,7 +201,7 @@ class VFS:
       if new_rpid < 0:
         print("Error creating replica")
         return res
-      if self._write_block(new_rpid, block_info):
+      if self._write_block(new_rpid+1, block_info):
         self.block_metadata[rpid].replication = new_rpid
       return res
     return res
