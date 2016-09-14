@@ -6,6 +6,10 @@ from a list of free block ids.
 from collections import deque
 import random
 
+original_read_error = 0;
+replica_read_error = 0;
+read_error = False;
+
 generate_read_errors = True
 read_error_prob = 0.1
 class BlockInfo:
@@ -59,6 +63,7 @@ class VFS:
     # if block_no == 1:
     #   return -1
     if generate_read_errors and random.random() < read_error_prob:
+      read_error = True;
       return -1
     if block_no > 500 or block_no < 1:
       print("Invalid block no")
@@ -163,6 +168,9 @@ class VFS:
     # print('~~~~', pid)
     res = self._read_block(pid, block_info)
     if res < 0:
+      if(read_error):
+        original_read_error += 1
+        read_error = False;
       # try for the replication block
       bdata = self.block_metadata[pid]
       bdata.error = True
@@ -172,6 +180,9 @@ class VFS:
         return -1
       res = self._read_block(rpid, block_info)
       if res < 0:
+        if(read_error):
+          replica_read_error += 1
+          read_error = False;
         print("Error retrieving block")
         self.block_metadata[rpid].error = True
         return -1
