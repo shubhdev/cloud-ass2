@@ -50,7 +50,7 @@ class VFS:
       return False
     metadata = self.block_metadata[block_no-1]
     if metadata.error:
-      print ("Corrupted block write" )
+      print ("Corrupted block write at block ", block_no )
       return -1
     metadata.size = len(block_info)
     metadata.free = False
@@ -136,7 +136,7 @@ class VFS:
       pid = blocks[i]
       data = self.block_metadata[pid]
       if data.free and not data.error:
-        return pid + 1
+        return pid
     return -1
     
   def write_block(self, id, block_no, block_info):
@@ -158,7 +158,6 @@ class VFS:
         print ("Not enough space for replication!")
         return True
       block_data.replication = rpid
-
     if not self._write_block(block_data.replication+1, block_info):
       print('Failed to create replica')
     return True
@@ -183,7 +182,6 @@ class VFS:
       bdata = self.block_metadata[pid]
       bdata.error = True
       rpid = bdata.replication
-      print ("rpid: ", rpid)
       if rpid is None:
         print("Error retrieving block")
         return -1
@@ -232,6 +230,23 @@ def test_replication():
     print("b : " , b.decode('utf-8'))
   print ("# original_read_error : " , vfs.original_read_error)
   print ("# replica read error : " ,vfs.replica_read_error)
+
+  print ("----------------------------------------")
+
+  for i in range(50,101):
+    s = "updated block inforamtion in block number " + str(i);
+    b = bytearray()
+    b.extend(s.encode())
+    vfs.write_block('A',i,b)
+
+  for i in range(50,101):
+    b = bytearray(50)
+    vfs.read_block('A',i,b)
+    print("b : " , b.decode('utf-8'))
+  
+  print ("# original_read_error : " , vfs.original_read_error)
+  print ("# replica read error : " ,vfs.replica_read_error)
+
 
 
 if __name__ == '__main__':
