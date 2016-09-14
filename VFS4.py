@@ -6,7 +6,6 @@ from a list of free block ids.
 from collections import deque
 import random
 
-
 generate_read_errors = True
 read_error_prob = 0.1
 class BlockInfo:
@@ -155,11 +154,12 @@ class VFS:
     if block_data.replication is None:
       # assign a block for replication.
       rpid = self.find_free_block(id)
-    if rpid < 0:
-      print ("Not enough space for replication!")
-      return True
-    block_data.replication = rpid
-    if not self._write_block(rpid, block_info):
+      if rpid < 0:
+        print ("Not enough space for replication!")
+        return True
+      block_data.replication = rpid
+
+    if not self._write_block(block_data.replication, block_info):
       print('Failed to create replica')
     return True
 
