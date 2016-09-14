@@ -6,9 +6,6 @@ from a list of free block ids.
 from collections import deque
 import random
 
-original_read_error = 0;
-replica_read_error = 0;
-read_error = False;
 
 generate_read_errors = True
 read_error_prob = 0.1
@@ -40,6 +37,10 @@ class VFS:
     self.block_metadata = [BlockInfo() for i in range(500)]
     self.disk_metadata = {}
     self.free_blocks = deque([i for i in range(500)])
+    self.original_read_error = 0;
+    self.replica_read_error = 0;
+    self.read_error = False;
+
 
   def _write_block(self, block_no, block_info):
     if block_no > 500 or block_no < 1:
@@ -49,6 +50,9 @@ class VFS:
       print("Block data too big")
       return False
     metadata = self.block_metadata[block_no-1]
+    if metadata.error:
+      print ("Corrupted block write" )
+      return -1
     metadata.size = len(block_info)
     metadata.free = False
     if block_no <= 200:
@@ -62,13 +66,17 @@ class VFS:
     # Uncomment for testing test_replica()
     # if block_no == 1:
     #   return -1
-    if generate_read_errors and random.random() < read_error_prob:
-      read_error = True;
-      return -1
     if block_no > 500 or block_no < 1:
       print("Invalid block no")
       return -1
     metadata = self.block_metadata[block_no-1]
+    if metadata.error:
+      print("Corrupted block read")
+      return -1
+    if generate_read_errors and random.random() < read_error_prob:
+      print ("Random read error")
+      self.read_error = True;
+      return -1
     if metadata.free:
       return 0
     if block_no <= 200:
@@ -168,9 +176,9 @@ class VFS:
     # print('~~~~', pid)
     res = self._read_block(pid, block_info)
     if res < 0:
-      if(read_error):
-        original_read_error += 1
-        read_error = False;
+      if(self.read_error):
+        self. original_read_error += 1
+        self.read_error = False;
       # try for the replication block
       bdata = self.block_metadata[pid]
       bdata.error = True
@@ -180,9 +188,9 @@ class VFS:
         return -1
       res = self._read_block(rpid, block_info)
       if res < 0:
-        if(read_error):
-          replica_read_error += 1
-          read_error = False;
+        if(self.read_error):
+          self.replica_read_error += 1
+          self.read_error = False;
         print("Error retrieving block")
         self.block_metadata[rpid].error = True
         return -1
@@ -200,15 +208,29 @@ class VFS:
 
 def test_replication():
   vfs = VFS()
-  vfs.create_disk('A', 10)
+  vfs.create_disk('A', 200)
   vfs.write_block('A',1, bytearray(b'shubham'))
   rbuff = bytearray(20)
-  print(vfs._read_block(11,rbuff)) # Acc. to our design, this should have the replica.
+  print(vfs._read_block(201,rbuff)) # Acc. to our design, this should have the replica.
   print(rbuff.decode('utf-8'))  
   # If we generate error when bid is 1, should read from replica.
   # Note update the code for success in this test.
   print(vfs.read_block('A',1,rbuff))
   print(rbuff.decode('utf-8'))  
+
+  for i in range(100,201):
+    s = "block inforamtion in block number " + str(i);
+    b = bytearray()
+    b.extend(s.encode())
+    vfs.write_block('A',i,bytearray(b))
+
+  for i in range(0,101):
+    b = bytearray(50)
+    vfs.read_block('A',100 + (i%100),bytearray(b))
+    print(b.decode('utf-8'))
+  print ("# original_read_error : " , vfs.original_read_error)
+  print ("# replica read error : " ,vfs.replica_read_error)
+
 
 if __name__ == '__main__':
   test_replication()
