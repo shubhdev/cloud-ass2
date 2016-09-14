@@ -120,11 +120,15 @@ class VFS:
       if data.free and not data.error:
         return pid + 1
     return -1
+    
   def write_block(self, id, block_no, block_info):
     if not id in self.disk_metadata:
       print('Invalid disk id')
       return False
     metadata = self.disk_metadata[id]
+    if block_no>len(metadata.disk_blocks()):
+      print('Invalid block no')
+      return False
     pid = metadata.disk_blocks()[block_no-1]+1
     if not self._write_block(pid, block_info):
       return False
@@ -145,6 +149,10 @@ class VFS:
       print('Invalid disk id')
       return -1
     metadata = self.disk_metadata[id]
+    if block_no>len(metadata.disk_blocks()):
+      print('Invalid block no')
+      return False
+
     pid = metadata.disk_blocks()[block_no-1]+1
     print('~~~~', pid)
     res = self._read_block(pid, block_info)
