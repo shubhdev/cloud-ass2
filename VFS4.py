@@ -187,6 +187,8 @@ class VFS:
         self.block_metadata[rpid].error = True
         return -1
       print('Block read from replica')
+      # Make original block point towards the replica.
+      metadata.disk_blocks()[block_no-1] = rpid
       new_rpid = self.find_free_block(id)
       if new_rpid < 0:
         print("Error creating replica")
