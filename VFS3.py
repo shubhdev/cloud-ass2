@@ -106,7 +106,7 @@ class VFS:
       print('Invalid disk id')
       return False
     metadata = self.disk_metadata[id]
-    if block_no>len(metadata.disk_blocks()):
+    if block_no > len(metadata.disk_blocks()) or block_no < 1:
       print('Invalid block no')
       return False
     pid = metadata.disk_blocks()[block_no-1]+1
@@ -117,7 +117,7 @@ class VFS:
       print('Invalid disk id')
       return -1
     metadata = self.disk_metadata[id]
-    if block_no>len(metadata.disk_blocks()):
+    if block_no>len(metadata.disk_blocks()) or block_no < 1:
       print('Invalid block no')
       return False
     pid = metadata.disk_blocks()[block_no-1]+1

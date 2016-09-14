@@ -25,6 +25,7 @@ class BlockInfo:
 class DiskInfo:
   def __init__(self):
     self.blocks = []
+    self.size = 0
   def disk_blocks(self):
     return self.blocks
 
@@ -78,11 +79,13 @@ class VFS:
     if id in self.disk_metadata:
       print('A disk with given id exists')
       return False
+    size = 2*size
     if size > len(self.free_blocks):
       print('Out of memory!')
       return False
     # Allocate the first 'size' blocks from free blocks list.
     metadata = DiskInfo()
+    metadata.size = size//2
     while size > 0:
       bid = self.free_blocks.popleft()
       block_data = self.block_metadata[bid]
@@ -115,7 +118,10 @@ class VFS:
     print('')
 
   def find_free_block(self, disk_id):
-    for pid in self.disk_metadata[disk_id].disk_blocks():
+    blocks = self.disk_metadata[disk_id].disk_blocks()
+    size = len(blocks)
+    for i in range(size//2,size):
+      pid = blocks[i]
       data = self.block_metadata[pid]
       if data.free and not data.error:
         return pid + 1
@@ -126,7 +132,7 @@ class VFS:
       print('Invalid disk id')
       return False
     metadata = self.disk_metadata[id]
-    if block_no>len(metadata.disk_blocks()):
+    if block_no > metadata.size or block_no < 1:
       print('Invalid block no')
       return False
     pid = metadata.disk_blocks()[block_no-1]+1
@@ -149,12 +155,12 @@ class VFS:
       print('Invalid disk id')
       return -1
     metadata = self.disk_metadata[id]
-    if block_no>len(metadata.disk_blocks()):
+    if block_no > metadata.size or block_no < 1:
       print('Invalid block no')
       return False
 
     pid = metadata.disk_blocks()[block_no-1]+1
-    print('~~~~', pid)
+    # print('~~~~', pid)
     res = self._read_block(pid, block_info)
     if res < 0:
       # try for the replication block
@@ -184,9 +190,11 @@ def test_replication():
   vfs.create_disk('A', 10)
   vfs.write_block('A',1, bytearray(b'shubham'))
   rbuff = bytearray(20)
-  print(vfs.read_block('A',2,rbuff)) # Acc. to our design, this should have the replica.
+  print(vfs._read_block(11,rbuff)) # Acc. to our design, this should have the replica.
   print(rbuff.decode('utf-8'))  
-  print(vfs.read_block('A',1,rbuff)) # We generate error when bid is 1, should read from replica.
+  # If we generate error when bid is 1, should read from replica.
+  # Note update the code for success in this test.
+  print(vfs.read_block('A',1,rbuff))
   print(rbuff.decode('utf-8'))  
 
 if __name__ == '__main__':
