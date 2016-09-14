@@ -109,16 +109,16 @@ class VFS:
       print('Invalid disk id')
       return False
     metadata = self.disk_metadata[id]
-    pid = metadata.disk_blocks()[block_no-1]+1
-    return self._write_block(pid, block_info)
+    pid = metadata.disk_blocks()[block_no-1]
+    return self._write_block(pid+1, block_info)
 
   def read_block(self, id, block_no, block_info):  
     if not id in self.disk_metadata:
       print('Invalid disk id')
       return -1
     metadata = self.disk_metadata[id]
-    pid = metadata.disk_blocks()[block_no-1]+1
-    return self._read_block(pid, block_info)
+    pid = metadata.disk_blocks()[block_no-1]
+    return self._read_block(pid+1, block_info)
 
   def create_checkpoint(self, disk_id):
     if not disk_id in self.disk_metadata:

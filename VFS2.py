@@ -116,8 +116,8 @@ class VFS:
     if block_no>metadata.size or block_no < 1:
       print('Invalid block no')
       return False
-    pid = metadata.disk_blocks()[block_no-1]+1
-    return self._write_block(pid, block_info)
+    pid = metadata.disk_blocks()[block_no-1]
+    return self._write_block(pid+1, block_info)
 
   def read_block(self, id, block_no, block_info):  
     if not id in self.disk_metadata:
@@ -127,8 +127,8 @@ class VFS:
     if block_no > metadata.size or block_no < 1:
       print('Invalid block no')
       return False
-    pid = metadata.disk_blocks()[block_no-1]+1
-    return self._read_block(pid, block_info)
+    pid = metadata.disk_blocks()[block_no-1]
+    return self._read_block(pid+1, block_info)
 
 
 def test_disk_api():
