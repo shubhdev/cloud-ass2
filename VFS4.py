@@ -70,7 +70,7 @@ class VFS:
       return -1
     metadata = self.block_metadata[block_no-1]
     if metadata.error:
-      print("Corrupted block read")
+      print("Corrupted block read from block ", block_no)
       return -1
     if generate_read_errors and random.random() < read_error_prob:
       print ("Random read error")
@@ -211,23 +211,23 @@ def test_replication():
   vfs.create_disk('A', 200)
   vfs.write_block('A',1, bytearray(b'shubham'))
   rbuff = bytearray(20)
-  print(vfs._read_block(201,rbuff)) # Acc. to our design, this should have the replica.
-  print(rbuff.decode('utf-8'))  
-  # If we generate error when bid is 1, should read from replica.
-  # Note update the code for success in this test.
-  print(vfs.read_block('A',1,rbuff))
-  print(rbuff.decode('utf-8'))  
+  # print(vfs._read_block(201,rbuff)) # Acc. to our design, this should have the replica.
+  # print(rbuff.decode('utf-8'))  
+  # # If we generate error when bid is 1, should read from replica.
+  # # Note update the code for success in this test.
+  # print(vfs.read_block('A',1,rbuff))
+  # print(rbuff.decode('utf-8'))  
 
   for i in range(100,201):
     s = "block inforamtion in block number " + str(i);
     b = bytearray()
     b.extend(s.encode())
-    vfs.write_block('A',i,bytearray(b))
+    vfs.write_block('A',i,b)
 
-  for i in range(0,101):
+  for i in range(20,50):
     b = bytearray(50)
-    vfs.read_block('A',100 + (i%100),bytearray(b))
-    print(b.decode('utf-8'))
+    vfs.read_block('A',100 + (i%100),b)
+    print("b : " , b.decode('utf-8'))
   print ("# original_read_error : " , vfs.original_read_error)
   print ("# replica read error : " ,vfs.replica_read_error)
 
