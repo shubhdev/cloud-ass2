@@ -183,6 +183,7 @@ class VFS:
       bdata = self.block_metadata[pid]
       bdata.error = True
       rpid = bdata.replication
+      print ("rpid: ", rpid)
       if rpid is None:
         print("Error retrieving block")
         return -1
@@ -208,8 +209,7 @@ class VFS:
 
 def test_replication():
   vfs = VFS()
-  vfs.create_disk('A', 200)
-  vfs.write_block('A',1, bytearray(b'shubham'))
+  vfs.create_disk('A', 100)
   rbuff = bytearray(20)
   # print(vfs._read_block(201,rbuff)) # Acc. to our design, this should have the replica.
   # print(rbuff.decode('utf-8'))  
@@ -218,15 +218,17 @@ def test_replication():
   # print(vfs.read_block('A',1,rbuff))
   # print(rbuff.decode('utf-8'))  
 
-  for i in range(100,201):
+  for i in range(50,101):
     s = "block inforamtion in block number " + str(i);
     b = bytearray()
     b.extend(s.encode())
     vfs.write_block('A',i,b)
 
-  for i in range(20,50):
+  vfs.write_block('A',1, bytearray(b'shubham'))
+
+  for i in range(50,101):
     b = bytearray(50)
-    vfs.read_block('A',100 + (i%100),b)
+    vfs.read_block('A',i,b)
     print("b : " , b.decode('utf-8'))
   print ("# original_read_error : " , vfs.original_read_error)
   print ("# replica read error : " ,vfs.replica_read_error)
